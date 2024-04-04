@@ -207,11 +207,11 @@ class DbOperations
         return $con;
     }
 
-    public function insertintoregisterTable($customerid, $firstName, $lastName, $dob, $gender, $phoneNumber, $houseNumber,
-                                            $area, $city, $Zipcode, $adharcardnumber, $photo, $drivinglicenseimage, $verficationStatus, $date, $validityDate) { 
+    public function insertintoregisterTable($customerid, $firstName, $lastName, $phoneNumber, $verificationStatus) { 
         $con = $this->dbTapidoConnection();
-        $insertQuery = "INSERT INTO Registration(customerid, firstName, lastName, dob, gender, phoneNumber, houseNumber, area, city, Zipcode, adharcardnumber, photo, drivinglicenseimage, verficationStatus, date, validityDate)
-        VALUES ('$customerid', '$firstName', '$lastName', '$dob', '$gender', '$phoneNumber', '$houseNumber', '$area', '$city', '$Zipcode', '$adharcardnumber', '$photo', '$drivinglicenseimage', '$verficationStatus', '$date', '$validityDate')";
+        $currentDate = date('m-d-Y');
+        $insertQuery = "INSERT INTO Registration(firstName, lastName, phoneNumber, registrationdate, driverId, verificationStatus)
+        VALUES ('$firstName', '$lastName', '$phoneNumber', '$currentDate', '$customerid', '$verificationStatus')";
         
         $status =  $this->topiconDatastoreInDB($insertQuery);
         return $status;
@@ -418,8 +418,212 @@ class DbOperations
         // Close the database connection
         mysqli_close($con);
     }
+
+
+    public function insertintocarsTable($carID, $carModel, $carNumber, $carregistrationPhoto, $seater, $cartype, $driverID,
+                                            $carPhoto, $carverificationStatus) { 
+        $con = $this->dbTapidoConnection();
+        $insertQuery = "INSERT INTO CarsTable(carID, carModel, carNumber, carregistrationPhoto, seater, cartype, driverID, carPhoto, carverificationStatus)
+        VALUES ('$carID', '$carModel', '$carNumber', '$carregistrationPhoto', '$seater', '$cartype', '$driverID', '$carPhoto', '$carverificationStatus'')";
+        
+        $status =  $this->topiconDatastoreInDB($insertQuery);
+        return $status;
+    }
+
+
+    public function updateCarVerification($carID) {
+        $con = $this->dbTapidoConnection();
     
+        // Check if the phone number exists before updating
+        $checkQuery = "SELECT * FROM CarsTable WHERE carID = '$carID'";
+        $checkResult = mysqli_query($con, $checkQuery);
     
-}
+        if ($checkResult && mysqli_num_rows($checkResult) > 0) {
+            // The phone number exists, proceed with the update
+            $updateQuery = "UPDATE CarsTable SET carverificationStatus = 'true' WHERE carID = '$carID'";
+            $updateResult =  $this->topiconDatastoreInDB($updateQuery);
+            
+            if ($updateResult) {
+                // Return true to indicate success
+                return true;
+            } else {
+                
+                // Handlfe the update query error
+                return false;
+            }
+        } else {
+            // The phone number does not exist, handle accordingly
+            return false;
+        }
+    }
+    
+
+    function loadTapidoImage($id) {
+        $con = $this->dbTapidoConnection();
+        $selectQuery = "SELECT imageData FROM ImagesTable WHERE id = ?";
+        $stmt = $con->prepare($selectQuery);
+        $stmt->bind_param("s", $id);
+        $stmt->execute();
+        $stmt->store_result();
+
+        if ($stmt->num_rows > 0) {
+            $stmt->bind_result($imageData);
+            $stmt->fetch();
+
+            header("Content-Type: image/png"); // Change the content type based on your image type
+            echo $imageData;
+        } else {
+            echo "Image not found.";
+        }
+
+        $stmt->close();
+        $con->close();
+    }
+
+
+    public function insertIntodrivinglicence($driverId, $licenseImage) {
+		$con = $this->dbTapidoConnection();
+		$insertQuery = "INSERT INTO DrivingLicenseTable (driverId, licenseImage) VALUES ('$driverId','$licenseImage')";
+        $status =  $this->topiconDatastoreInDB($insertQuery);
+		return $status;
+	}
+
+    public function insertIntoSocialDocument($driverId, $socialNumber) {
+		$con = $this->dbTapidoConnection();
+		
+		$insertQuery = "INSERT INTO SocialDocument (driverId, socialNumber) VALUES ('$driverId', '$socialNumber')";
+        $status =  $this->topiconDatastoreInDB($insertQuery);
+		return $status;
+	}
+
+    public function insertIntoProfilePhoto($driverId, $fulladdress, $photo) {
+		$con = $this->dbTapidoConnection();
+		$insertQuery = "INSERT INTO ProfileDetails (driverId, fullAddress, photo) VALUES ('$driverId', '$fulladdress','$photo')";
+        $status =  $this->topiconDatastoreInDB($insertQuery);
+		return $status;
+	}
+
+    public function insertIntoVehicleTable($driverId, $year, $make, $model, $color, $doors, $carNumber) {
+		$con = $this->dbTapidoConnection();
+		$insertQuery = "INSERT INTO VehicleTable (driverId, year, make, model, color, doors, carNumber) VALUES ('$driverId', '$year', '$make','$model' ,'$color', '$doors', '$carNumber')";
+        $status =  $this->topiconDatastoreInDB($insertQuery);
+		return $status;
+	}
+
+    public function getDocumentsDetails($driverId) {
+        $con = $this->dbTapidoConnection();
+        $vehiclefound = "SELECT * FROM VehicleTable WHERE driverId = '$driverId'";
+        $socialfound = "SELECT * FROM SocialDocument WHERE driverId = '$driverId'";
+        $profiledetails = "SELECT * FROM ProfileDetails WHERE driverId = '$driverId'";
+        $drivinglicensedetails = "SELECT * FROM DrivingLicenseTable WHERE driverId = '$driverId'";
+
+        $vehiclefoundresult = mysqli_query($con, $vehiclefound);
+        $socialfoundresult = mysqli_query($con, $socialfound);
+        $profiledetailsresult = mysqli_query($con, $profiledetails);
+        $drivingdetailsfoundresult = mysqli_query($con, $drivinglicensedetails);
+
+		$vehicleexist = mysqli_num_rows($vehiclefoundresult);
+        $socialdocumentsexist= mysqli_num_rows($socialfoundresult);
+        $profiledetailsexist = mysqli_num_rows($profiledetailsresult);
+        $drivingdetailsexist = mysqli_num_rows($drivingdetailsfoundresult);
+      
+		$documentexist = [
+            "vehicleexist" => $vehicleexist > 0,
+            "socialdocumentsexist" => $socialdocumentsexist > 0,
+            "profiledetailsexist" => $profiledetailsexist > 0,
+            "drivingdetailsexist" => $drivingdetailsexist > 0,
+        ];
+        mysqli_close($con);
+        return $documentexist;
+    }   
+
+    public function isRegisteredUser($phoneNumber) {
+        $con = $this->dbTapidoConnection();
+        $registration = "SELECT driverId, verificationStatus, firstName, lastName, registrationdate, phoneNumber FROM Registration WHERE phoneNumber = '$phoneNumber'";
+       
+        $result = mysqli_query($con, $registration);
+        $registrationlexist = mysqli_num_rows($result);
+        $driverID = null;
+        if ($result) {
+            // Check if any row is returned
+            if (mysqli_num_rows($result) > 0) {
+                // Fetch the row
+                $row = mysqli_fetch_assoc($result);
+                $driverID = $row['driverId'];
+                $verificationStatus = $row['verificationStatus'];
+                $firstName = $row['firstName'];
+                $lastName = $row['lastName'];
+                $registrationdate = $row['registrationdate'];
+                $phoneNumber = $row['phoneNumber'];
+               
+            } else {
+                $driverID = null;
+            }
+        } else {
+            // Error executing the query
+            $driverID = null;
+        }
+        $userexist = [
+            "isRegistered" => true,
+            "driverID" =>  $driverID,
+            "verificationStatus" => $verificationStatus,
+            "firstName" => $firstName,
+            "lastName" => $lastName,
+            "registrationdate" => $registrationdate,
+            "phoneNumber" => $phoneNumber
+        ];
+        mysqli_close($con);
+        return $userexist;
+    }
+
+    public function updatedrivertable($driverID, $driverActiveLocation, $driverActiveZipcode, $driverStatus, $ontripStatus, $driverCity, $driverState)  {
+        $con = $this->dbTapidoConnection();
+		$insertQuery = "INSERT INTO DriversTable (driverId, driverActiveLocation, driverActiveZipcode, driverStatus, ontripStatus, driverCity, driverState) 
+        VALUES ('$driverID', '$driverActiveLocation', '$driverActiveZipcode', '$driverStatus', '$ontripStatus', '$driverCity', '$driverState')
+        ON DUPLICATE KEY UPDATE 
+            driverActiveLocation = VALUES(driverActiveLocation),
+            driverActiveZipcode = VALUES(driverActiveZipcode),
+            driverStatus = VALUES(driverStatus),
+            ontripStatus = VALUES(ontripStatus),
+            driverCity = VALUES(driverCity),
+            driverState = VALUES(driverState);
+        ";
+        $status =  $this->topiconDatastoreInDB($insertQuery);
+        return $status;
+    }
+
+
+    public function updatedrivertableNotification($driverID, $notificationId, $platform)  {
+        $con = $this->dbTapidoConnection();
+		$insertQuery = "INSERT INTO DriversNotificationTable (driverId, notificationId, platform) 
+        VALUES ('$driverID', '$notificationId', '$platform')
+        ON DUPLICATE KEY UPDATE 
+            driverId = VALUES(driverId),
+            notificationId = VALUES(notificationId),
+            platform = VALUES(platform)
+        ";
+        $status =  $this->topiconDatastoreInDB($insertQuery);
+        return $status;
+    }
+
+    
+    public function getDriverStatus($driverID)  {
+        $con = $this->dbTapidoConnection();
+        $registration = "SELECT driverStatus FROM DriversTable WHERE driverId = '$driverID'";
+        $result = mysqli_query($con, $registration);
+        if ($result) {
+            // Check if any row is returned
+            if (mysqli_num_rows($result) > 0) {
+                $row = mysqli_fetch_assoc($result);
+                $driverStatus = $row['driverStatus'];
+                if ($driverStatus === null) {
+                    $driverStatus = "false";
+                } 
+            }
+        }
+        return $driverStatus;
+    }
+    
+}   
 
 ?>

@@ -32,7 +32,7 @@ class StoreOperations
 
             $response = [
                 "status" => ($status) ? "success" : "failed",
-                "storeId" => $storeId
+                "data" => ["storeId" => $storeId]
             ];
         }
 
@@ -119,6 +119,11 @@ class StoreOperations
 			header('Content-type: application/json');
 			echo json_encode($response);
 		}
+	}
+
+	public function checkDriverAllDocuments($data) {
+		$driverId = $data["driverId"];
+		
 	}
 	
 }
